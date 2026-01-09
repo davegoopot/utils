@@ -1,4 +1,4 @@
-# Winget Auto-Updator Script
+# Winget Auto-Updater Script
 # This script runs winget update and lists all updateable package IDs
 
 Write-Host "====================================" -ForegroundColor Cyan
@@ -41,22 +41,25 @@ try {
     
     foreach ($line in $lines) {
         # Skip header lines and detect when we're in the table section
-        if ($line -match "^Name\s+Id\s+Version\s+Available\s+Source" -or 
-            $line -match "^-+\s+-+\s+-+\s+-+\s+-+") {
+        if ($line -match "^Name\s+Id\s+Version\s+Available" -or 
+            $line -match "^-{3,}\s+-{3,}") {
             $inTableSection = $true
             continue
         }
         
         # Once in table section, extract package IDs
         if ($inTableSection -and $line.Trim() -ne "" -and 
-            -not ($line -match "upgrades available") -and
-            -not ($line -match "winget upgrade")) {
+            -not ($line -match "^\d+\s+upgrades? available") -and
+            -not ($line -match "^To upgrade") -and
+            -not ($line -match "^winget upgrade")) {
             
             # Split by whitespace and look for the ID column (typically second column)
             $parts = $line -split "\s{2,}" # Split by 2+ spaces
             if ($parts.Count -ge 2) {
                 $packageId = $parts[1].Trim()
-                if ($packageId -ne "" -and $packageId -ne "Id") {
+                # Validate that this looks like a package ID (has at least one dot or is all alphanumeric with dashes)
+                if ($packageId -ne "" -and $packageId -ne "Id" -and 
+                    ($packageId -match '[\w-]+\.[\w-]+' -or $packageId -match '^[\w][\w-]*$')) {
                     $packageIds += $packageId
                     Write-Host "  - $packageId" -ForegroundColor Green
                 }
