@@ -1,40 +1,45 @@
 # Winget Auto-Updater Script
 # This script runs winget update and lists all updateable package IDs
 
-Write-Host "====================================" -ForegroundColor Cyan
-Write-Host "  Winget Package Update Checker" -ForegroundColor Cyan
-Write-Host "====================================" -ForegroundColor Cyan
-Write-Host ""
-
-# Check if winget is available
-try {
-    $wingetVersion = winget --version
-    Write-Host "Winget version: $wingetVersion" -ForegroundColor Green
+function Show-Header {
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host "  Winget Package Update Checker" -ForegroundColor Cyan
+    Write-Host "====================================" -ForegroundColor Cyan
     Write-Host ""
-} catch {
-    Write-Host "Error: Winget is not installed or not available in PATH" -ForegroundColor Red
-    exit 1
 }
 
-Write-Host "Checking for available updates..." -ForegroundColor Yellow
-Write-Host ""
+function Test-WingetInstalled {
+    try {
+        $wingetVersion = winget --version
+        Write-Host "Winget version: $wingetVersion" -ForegroundColor Green
+        Write-Host ""
+        return $true
+    } catch {
+        Write-Host "Error: Winget is not installed or not available in PATH" -ForegroundColor Red
+        return $false
+    }
+}
 
-# Run winget upgrade to get list of available updates
-# Using --include-unknown to also show packages that might have updates from unknown sources
-try {
-    $updateOutput = winget upgrade --include-unknown 2>&1
-    
-    # Display the full output
-    Write-Host $updateOutput
+function Get-WingetUpdateOutput {
+    Write-Host "Checking for available updates..." -ForegroundColor Yellow
     Write-Host ""
     
-    # Parse the output to extract package IDs
-    Write-Host "====================================" -ForegroundColor Cyan
-    Write-Host "  Updateable Package IDs" -ForegroundColor Cyan
-    Write-Host "====================================" -ForegroundColor Cyan
-    Write-Host ""
+    try {
+        $updateOutput = winget upgrade --include-unknown 2>&1
+        Write-Host $updateOutput
+        Write-Host ""
+        return $updateOutput
+    } catch {
+        Write-Host "Error running winget upgrade: $_" -ForegroundColor Red
+        return $null
+    }
+}
+
+function Parse-PackageIds {
+    param (
+        [string]$updateOutput
+    )
     
-    # Split output into lines and look for lines with package information
     $lines = $updateOutput -split "`r?`n"
     $packageIds = @()
     $inTableSection = $false
@@ -61,10 +66,26 @@ try {
                 if ($packageId -ne "" -and $packageId -ne "Id" -and 
                     ($packageId -match '[\w-]+\.[\w-]+' -or $packageId -match '^[\w][\w-]*$')) {
                     $packageIds += $packageId
-                    Write-Host "  - $packageId" -ForegroundColor Green
                 }
             }
         }
+    }
+    
+    return $packageIds
+}
+
+function Show-PackageIds {
+    param (
+        [array]$packageIds
+    )
+    
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host "  Updateable Package IDs" -ForegroundColor Cyan
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host ""
+    
+    foreach ($packageId in $packageIds) {
+        Write-Host "  - $packageId" -ForegroundColor Green
     }
     
     Write-Host ""
@@ -73,13 +94,39 @@ try {
     } else {
         Write-Host "No packages need updating or unable to parse package list." -ForegroundColor Green
     }
-    
-} catch {
-    Write-Host "Error running winget upgrade: $_" -ForegroundColor Red
-    exit 1
 }
 
-Write-Host ""
-Write-Host "====================================" -ForegroundColor Cyan
-Write-Host "Done!" -ForegroundColor Cyan
-Write-Host "====================================" -ForegroundColor Cyan
+function Show-Footer {
+    Write-Host ""
+    Write-Host "====================================" -ForegroundColor Cyan
+    Write-Host "Done!" -ForegroundColor Cyan
+    Write-Host "====================================" -ForegroundColor Cyan
+}
+
+function Main {
+    # Step 1: Display header
+    Show-Header
+    
+    # Step 2: Check if winget is installed
+    if (-not (Test-WingetInstalled)) {
+        exit 1
+    }
+    
+    # Step 3: Get winget update output
+    $updateOutput = Get-WingetUpdateOutput
+    if ($null -eq $updateOutput) {
+        exit 1
+    }
+    
+    # Step 4: Parse package IDs from output
+    $packageIds = Parse-PackageIds -updateOutput $updateOutput
+    
+    # Step 5: Display package IDs
+    Show-PackageIds -packageIds $packageIds
+    
+    # Step 6: Display footer
+    Show-Footer
+}
+
+# Execute main function
+Main
