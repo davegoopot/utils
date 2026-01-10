@@ -22,11 +22,22 @@ function Get-WingetUpdateOutput {
     Write-Host ""
     
     try {
-        # Use --disable-interactivity to suppress progress bars and spinners
-        $updateOutput = winget upgrade --include-unknown --disable-interactivity 2>&1 | Out-String
-        Write-Host $updateOutput
+        # Capture stdout only, suppress stderr which contains progress indicators
+        $updateOutput = winget upgrade --include-unknown --accept-source-agreements 2>$null
+        
+        # Filter out any remaining spinner/progress characters
+        $cleanOutput = $updateOutput | Where-Object {
+            $_ -and
+            $_ -notmatch '^\s*[-\\|/]\s*$' -and
+            $_ -notmatch '^[\s─━│┃┌┐└┘├┤┬┴┼╔╗╚╝╠╣╦╩╬═║╒╓╕╖╘╙╛╜╞╟╡╢╤╥╧╨╪╫■▪●◆◇○◌▫▬▭▮▯▰▱▲△▴▵▶▷▸▹►▻▼▽▾▿◀◁◂◃◄◅]+' -and
+            $_ -notmatch '^\s*\d+\s*(KB|MB|GB)\s*/\s*[\d.]+\s*(KB|MB|GB)\s*$' -and
+            $_ -notmatch '^\s*\d+%\s*$'
+        }
+        
+        $cleanOutputString = $cleanOutput -join "`n"
+        Write-Host $cleanOutputString
         Write-Host ""
-        return $updateOutput
+        return $cleanOutputString
     } catch {
         Write-Host "Error running winget upgrade: $_" -ForegroundColor Red
         return $null
