@@ -51,23 +51,53 @@ function Parse-PackageIds {
     
     $lines = $updateOutput -split "`r?`n"
     $packageIds = @()
+    $headerLine = $null
+    $idColumnStart = -1
+    $idColumnEnd = -1
     $inTableSection = $false
     
     foreach ($line in $lines) {
-        if ($line -match "^Name\s+Id\s+Version\s+Available" -or 
-            $line -match "^-{3,}\s+-{3,}") {
+        # Find the header line to determine column positions
+        if ($line -match "^Name\s+Id\s+Version\s+Available") {
+            $headerLine = $line
+            # Find the "Id" column position
+            $idColumnStart = $headerLine.IndexOf("Id")
+            # Find where the "Version" column starts (end of Id column)
+            $versionIndex = $headerLine.IndexOf("Version")
+            if ($versionIndex -gt $idColumnStart) {
+                $idColumnEnd = $versionIndex
+            }
             $inTableSection = $true
             continue
         }
         
+        # Skip the separator line
+        if ($line -match "^-{3,}") {
+            continue
+        }
+        
+        # Parse data lines using column positions
         if ($inTableSection -and $line.Trim() -ne "" -and 
             -not ($line -match "^\d+\s+upgrades? available") -and
             -not ($line -match "^To upgrade") -and
-            -not ($line -match "^winget upgrade")) {
+            -not ($line -match "^winget upgrade") -and
+            $idColumnStart -ge 0) {
             
-            $parts = $line -split "\s{2,}"
-            if ($parts.Count -ge 2) {
-                $packageId = $parts[1].Trim()
+            # Extract the Id column value based on detected positions
+            if ($line.Length -gt $idColumnStart) {
+                $packageId = ""
+                if ($idColumnEnd -gt $idColumnStart -and $line.Length -gt $idColumnEnd) {
+                    # Extract substring between Id column start and Version column start
+                    $packageId = $line.Substring($idColumnStart, $idColumnEnd - $idColumnStart).Trim()
+                } elseif ($line.Length -gt $idColumnStart) {
+                    # If we can't find the end, try to extract the Id more carefully
+                    $remainder = $line.Substring($idColumnStart).Trim()
+                    # Take the first word that looks like a package ID
+                    if ($remainder -match '^([\w-]+\.[\w.-]+|[\w][\w-]*)') {
+                        $packageId = $matches[1]
+                    }
+                }
+                
                 if ($packageId -ne "" -and $packageId -ne "Id" -and 
                     ($packageId -match '[\w-]+\.[\w-]+' -or $packageId -match '^[\w][\w-]*$')) {
                     $packageIds += $packageId
