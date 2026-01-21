@@ -76,9 +76,16 @@ function Parse-PackageIds {
             continue
         }
         
+        # Check if we've left the table section (empty line or footer text)
+        if ($inTableSection -and $line.Trim() -eq "") {
+            $inTableSection = $false
+            continue
+        }
+        
         # Parse data lines using column positions
         if ($inTableSection -and $line.Trim() -ne "" -and 
             -not ($line -match "^\d+\s+upgrades? available") -and
+            -not ($line -match "^No upgrades available") -and
             -not ($line -match "^To upgrade") -and
             -not ($line -match "^winget upgrade") -and
             $idColumnStart -ge 0) {
@@ -98,8 +105,14 @@ function Parse-PackageIds {
                     }
                 }
                 
-                if ($packageId -ne "" -and $packageId -ne "Id" -and 
-                    ($packageId -match '[\w-]+\.[\w-]+' -or $packageId -match '^[\w][\w-]*$')) {
+                # Validate that what we extracted looks like a valid package ID
+                # Package IDs should contain dots (like VideoLAN.VLC) or be simple alphanumeric
+                # They should NOT contain spaces or be version numbers
+                if ($packageId -ne "" -and 
+                    $packageId -ne "Id" -and 
+                    -not ($packageId -match '^\d+\.\d+') -and  # Not a version like "3.0.22"
+                    -not ($packageId -match '\s') -and  # No spaces
+                    ($packageId -match '[\w-]+\.[\w.-]+' -or $packageId -match '^[\w][\w-]*$')) {
                     $packageIds += $packageId
                 }
             }
