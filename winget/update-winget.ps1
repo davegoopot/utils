@@ -96,7 +96,7 @@ function Parse-PackageIds {
                 if ($idColumnEnd -gt $idColumnStart -and $line.Length -gt $idColumnEnd) {
                     # Extract substring between Id column start and Version column start
                     $packageId = $line.Substring($idColumnStart, $idColumnEnd - $idColumnStart).Trim()
-                } elseif ($line.Length -gt $idColumnStart) {
+                } else {
                     # If we can't find the end, try to extract the Id more carefully
                     $remainder = $line.Substring($idColumnStart).Trim()
                     # Take the first word that looks like a package ID
@@ -110,9 +110,9 @@ function Parse-PackageIds {
                 # They should NOT contain spaces or be version numbers
                 if ($packageId -ne "" -and 
                     $packageId -ne "Id" -and 
-                    -not ($packageId -match '^\d+\.\d+') -and  # Not a version like "3.0.22"
+                    -not ($packageId -match '^\d+\.\d+(\.\d+)*$') -and  # Not a version like "3.0.22" or "1.2.3.4"
                     -not ($packageId -match '\s') -and  # No spaces
-                    ($packageId -match '[\w-]+\.[\w.-]+' -or $packageId -match '^[\w][\w-]*$')) {
+                    ($packageId -match '^[\w-]+\.[\w.-]+$' -or $packageId -match '^[\w][\w-]*$')) {
                     $packageIds += $packageId
                 }
             }
