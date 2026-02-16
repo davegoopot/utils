@@ -12,10 +12,32 @@ sudo ./install.sh
 ```
 
 The installer will:
-1. Install `mailutils` if not already present
+1. Install required packages (`mailutils`, `postfix`, `libsasl2-modules`, `ca-certificates`)
 2. Prompt for recipient email address
-3. Create configuration file (`.env`)
-4. Set up a cron job to run package checks automatically
+3. Configure Gmail SMTP (optional but recommended)
+4. Create configuration file (`.env`)
+5. Set up a cron job to run package checks automatically
+
+### Gmail SMTP Setup
+
+The installer can automatically configure Gmail SMTP for reliable email delivery. You will need:
+
+1. **A Gmail account with 2-Step Verification enabled**
+2. **A Gmail App Password** (not your regular Gmail password)
+
+#### Creating a Gmail App Password
+
+1. Enable 2-Step Verification on your Gmail account:
+   - Go to [Google Account Security](https://myaccount.google.com/security)
+   - Enable "2-Step Verification"
+
+2. Generate an App Password:
+   - Go to [App Passwords](https://myaccount.google.com/apppasswords)
+   - Select "Mail" and your device
+   - Click "Generate"
+   - Copy the 16-character password (spaces don't matter)
+
+3. Use this App Password during the installer when prompted
 
 ## Manual Setup
 
@@ -25,10 +47,51 @@ If you prefer to set up manually:
 
 ```bash
 sudo apt update
-sudo apt install mailutils
+sudo apt install mailutils postfix libsasl2-modules ca-certificates
 ```
 
-### 2. Configure Environment
+During Postfix installation, select "Internet Site" and enter your hostname.
+
+### 2. Configure Gmail SMTP (Recommended)
+
+Edit the Postfix configuration:
+
+```bash
+sudo nano /etc/postfix/main.cf
+```
+
+Add these lines at the end:
+
+```
+relayhost = [smtp.gmail.com]:587
+smtp_use_tls = yes
+smtp_sasl_auth_enable = yes
+smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
+smtp_sasl_security_options = noanonymous
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+```
+
+Create the password file:
+
+```bash
+sudo nano /etc/postfix/sasl_passwd
+```
+
+Add this line (replace with your Gmail address and App Password):
+
+```
+[smtp.gmail.com]:587 your-email@gmail.com:your-app-password
+```
+
+Secure and hash the password file:
+
+```bash
+sudo chmod 600 /etc/postfix/sasl_passwd
+sudo postmap /etc/postfix/sasl_passwd
+sudo systemctl restart postfix
+```
+
+### 3. Configure Environment
 
 Create a `.env` file in this directory:
 
@@ -36,7 +99,7 @@ Create a `.env` file in this directory:
 RECIPIENT=your-email@example.com
 ```
 
-### 3. Test the Scripts
+### 4. Test the Scripts
 
 ```bash
 # Check for package updates
@@ -46,7 +109,7 @@ RECIPIENT=your-email@example.com
 echo "Test email" | ./email-output.sh
 ```
 
-### 4. Set Up Cron Job
+### 5. Set Up Cron Job
 
 Add to your crontab (e.g., `sudo crontab -e`):
 
@@ -73,8 +136,27 @@ The `.env` file supports the following variables:
 ### Email not sending
 
 1. Verify mailutils is installed: `which mail`
-2. Check system mail logs: `sudo tail -f /var/log/mail.log`
+2. Check Postfix logs: `sudo tail -f /var/log/mail.log`
 3. Test email manually: `echo "test" | mail -s "test" your-email@example.com`
+4. Check Postfix status: `sudo systemctl status postfix`
+5. For Gmail issues:
+   - Verify you're using an App Password, not your regular password
+   - Check that 2-Step Verification is enabled on your Gmail account
+   - Review Gmail's sending limits (500 emails/day)
+   - Check if Gmail blocked the login attempt (check your Gmail security alerts)
+
+### Gmail SMTP Authentication Errors
+
+If you see "authentication failed" errors:
+
+1. Verify the App Password is correct (regenerate if needed)
+2. Check the `/etc/postfix/sasl_passwd` file has correct format:
+   ```bash
+   sudo cat /etc/postfix/sasl_passwd
+   ```
+3. Ensure the file was hashed: `sudo postmap /etc/postfix/sasl_passwd`
+4. Check file permissions: `ls -l /etc/postfix/sasl_passwd*` (should be 600)
+5. Restart Postfix: `sudo systemctl restart postfix`
 
 ### Cron job not running
 

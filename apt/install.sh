@@ -25,15 +25,33 @@ command_exists() {
     command -v "$1" &> /dev/null
 }
 
-# Install mailutils if not already installed
-echo "Checking for mailutils installation..."
+# Install required packages
+echo "Checking for required packages..."
+PACKAGES_TO_INSTALL=()
+
 if ! command_exists mail; then
-    echo "Installing mailutils..."
+    PACKAGES_TO_INSTALL+=("mailutils")
+fi
+
+if ! command_exists postfix; then
+    PACKAGES_TO_INSTALL+=("postfix")
+fi
+
+if ! dpkg -l | grep -q libsasl2-modules; then
+    PACKAGES_TO_INSTALL+=("libsasl2-modules")
+fi
+
+if ! dpkg -l | grep -q ca-certificates; then
+    PACKAGES_TO_INSTALL+=("ca-certificates")
+fi
+
+if [ ${#PACKAGES_TO_INSTALL[@]} -gt 0 ]; then
+    echo "Installing packages: ${PACKAGES_TO_INSTALL[*]}"
     apt update
-    apt install -y mailutils
-    echo "✓ mailutils installed successfully"
+    DEBIAN_FRONTEND=noninteractive apt install -y "${PACKAGES_TO_INSTALL[@]}"
+    echo "✓ Packages installed successfully"
 else
-    echo "✓ mailutils is already installed"
+    echo "✓ All required packages are already installed"
 fi
 
 # Set up environment file
@@ -72,6 +90,90 @@ EOF
     
     chmod 600 "$ENV_FILE"
     echo "✓ Environment file created at: $ENV_FILE"
+fi
+
+# Configure Gmail SMTP
+echo ""
+echo "Setting up Gmail SMTP configuration..."
+read -r -p "Do you want to configure Gmail SMTP for sending emails? (y/N): " -n 1 -r SETUP_GMAIL
+echo
+
+if [[ $SETUP_GMAIL =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "Gmail SMTP Setup:"
+    echo "=================="
+    echo "Note: You will need a Gmail App Password (not your regular password)"
+    echo "To create an App Password:"
+    echo "  1. Enable 2-Step Verification on your Gmail account"
+    echo "  2. Go to: https://myaccount.google.com/apppasswords"
+    echo "  3. Generate an App Password for 'Mail'"
+    echo ""
+    
+    read -r -p "Enter your Gmail address: " GMAIL_ADDRESS
+    
+    if [ -z "$GMAIL_ADDRESS" ]; then
+        echo "ERROR: Gmail address cannot be empty"
+        exit 1
+    fi
+    
+    read -r -s -p "Enter your Gmail App Password: " GMAIL_APP_PASSWORD
+    echo
+    
+    if [ -z "$GMAIL_APP_PASSWORD" ]; then
+        echo "ERROR: Gmail App Password cannot be empty"
+        exit 1
+    fi
+    
+    # Configure Postfix for Gmail SMTP
+    echo "Configuring Postfix for Gmail SMTP..."
+    
+    # Backup existing main.cf
+    if [ -f /etc/postfix/main.cf ]; then
+        cp /etc/postfix/main.cf "/etc/postfix/main.cf.backup.$(date +%Y%m%d%H%M%S)"
+        echo "✓ Backed up existing Postfix configuration"
+    fi
+    
+    # Update main.cf with Gmail SMTP settings
+    cat >> /etc/postfix/main.cf << EOF
+
+# Gmail SMTP Configuration (added by apt installer)
+relayhost = [smtp.gmail.com]:587
+smtp_use_tls = yes
+smtp_sasl_auth_enable = yes
+smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
+smtp_sasl_security_options = noanonymous
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+EOF
+    
+    # Create sasl_passwd file
+    echo "[smtp.gmail.com]:587 $GMAIL_ADDRESS:$GMAIL_APP_PASSWORD" > /etc/postfix/sasl_passwd
+    chmod 600 /etc/postfix/sasl_passwd
+    postmap /etc/postfix/sasl_passwd
+    
+    # Restart Postfix
+    systemctl restart postfix
+    
+    echo "✓ Gmail SMTP configuration complete"
+    
+    # Test email
+    echo ""
+    read -r -p "Do you want to send a test email now? (y/N): " -n 1 -r SEND_TEST
+    echo
+    
+    if [[ $SEND_TEST =~ ^[Yy]$ ]]; then
+        TEST_RECIPIENT="${RECIPIENT_EMAIL:-$GMAIL_ADDRESS}"
+        echo "Sending test email to $TEST_RECIPIENT..."
+        if echo "This is a test email from the APT Package Update Email Notification System." | mail -s "Test Email - APT Notification System" "$TEST_RECIPIENT"; then
+            echo "✓ Test email sent successfully"
+            echo "  Please check your inbox (and spam folder) for the test email"
+        else
+            echo "✗ Failed to send test email"
+            echo "  Check /var/log/mail.log for details"
+        fi
+    fi
+else
+    echo "Skipping Gmail SMTP configuration"
+    echo "Note: You will need to configure your mail system manually for email delivery"
 fi
 
 # Set up cron job
