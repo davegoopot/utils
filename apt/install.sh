@@ -58,6 +58,7 @@ if [ -z "$SKIP_ENV" ]; then
         exit 1
     fi
     
+    # Validate email format (basic validation to catch obvious mistakes)
     if [[ ! "$RECIPIENT_EMAIL" =~ ^[^@]+@[^@]+\.[^@]+$ ]]; then
         echo "ERROR: Invalid email format. Please enter a valid email address."
         exit 1
@@ -76,7 +77,7 @@ fi
 # Set up cron job
 echo ""
 echo "Setting up cron job..."
-CRON_SCHEDULE="0 8 * * *"  # Default: 8 AM daily
+CRON_SCHEDULE="0 8 * * *"  # Default: 8 AM daily (system local time)
 read -r -p "Enter cron schedule (default: $CRON_SCHEDULE - 8 AM daily): " USER_SCHEDULE
 
 if [ -n "$USER_SCHEDULE" ]; then
@@ -122,6 +123,8 @@ CRON_ENTRY="$CRON_SCHEDULE $CRON_CMD"
 
 # Check if cron job already exists
 TEMP_CRON=$(mktemp)
+trap 'rm -f "$TEMP_CRON"' EXIT  # Ensure cleanup on exit
+
 crontab -u "$CRON_USER" -l 2>/dev/null > "$TEMP_CRON" || true
 
 if grep -Fq "$CRON_CMD" "$TEMP_CRON"; then
@@ -144,8 +147,6 @@ else
     crontab -u "$CRON_USER" "$TEMP_CRON"
     echo "✓ Cron job added for user: $CRON_USER"
 fi
-
-rm -f "$TEMP_CRON"
 
 # Display current cron jobs
 echo ""
