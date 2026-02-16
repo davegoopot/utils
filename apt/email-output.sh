@@ -8,7 +8,8 @@ fi
 
 # Get current date and time for subject
 CURRENT_DATE=$(date +'%Y-%m-%d %H:%M')
-SUBJECT="script output - $CURRENT_DATE"
+HOSTNAME=$(hostname)
+SUBJECT="script output - $HOSTNAME - $CURRENT_DATE"
 
 if [ -z "$RECIPIENT" ]; then
     echo "ERROR: RECIPIENT not set in .env" >&2
