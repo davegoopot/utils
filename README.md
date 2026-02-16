@@ -2,6 +2,20 @@
 
 This document outlines methods to configure the server to listen for an email reply and trigger the `apt upgrade` command automatically.
 
+## Quick Start
+
+For quick installation of the package update email notification system:
+
+```bash
+cd apt
+sudo ./install.sh
+```
+
+The installer will:
+- Install required dependencies (mailutils)
+- Set up your email configuration
+- Create a cron job to run package checks and send email notifications
+
 ## Concept
 1. The server sends the package status email (current setup).
 2. You reply to that email with a specific keyword (e.g., "UPGRADE").
