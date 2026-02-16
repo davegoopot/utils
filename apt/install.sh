@@ -52,8 +52,14 @@ fi
 if [ -z "$SKIP_ENV" ]; then
     read -r -p "Enter recipient email address: " RECIPIENT_EMAIL
     
+    # Validate email format
     if [ -z "$RECIPIENT_EMAIL" ]; then
         echo "ERROR: Email address cannot be empty"
+        exit 1
+    fi
+    
+    if [[ ! "$RECIPIENT_EMAIL" =~ ^[^@]+@[^@]+\.[^@]+$ ]]; then
+        echo "ERROR: Invalid email format. Please enter a valid email address."
         exit 1
     fi
     
@@ -74,7 +80,14 @@ CRON_SCHEDULE="0 8 * * *"  # Default: 8 AM daily
 read -r -p "Enter cron schedule (default: $CRON_SCHEDULE - 8 AM daily): " USER_SCHEDULE
 
 if [ -n "$USER_SCHEDULE" ]; then
-    CRON_SCHEDULE="$USER_SCHEDULE"
+    # Basic validation: cron schedule should have 5 fields (min hour day month weekday)
+    FIELD_COUNT=$(echo "$USER_SCHEDULE" | awk '{print NF}')
+    if [ "$FIELD_COUNT" -ne 5 ]; then
+        echo "WARNING: Cron schedule should have 5 fields (minute hour day month weekday)"
+        echo "Using default schedule: $CRON_SCHEDULE"
+    else
+        CRON_SCHEDULE="$USER_SCHEDULE"
+    fi
 fi
 
 # Get the actual user who invoked sudo
@@ -84,6 +97,23 @@ if [ "$ACTUAL_USER" = "root" ]; then
     CRON_USER="${CRON_USER:-root}"
 else
     CRON_USER="$ACTUAL_USER"
+fi
+
+# Update .env file ownership to match cron user
+if [ -f "$ENV_FILE" ] && [ "$CRON_USER" != "root" ]; then
+    chown "$CRON_USER:$CRON_USER" "$ENV_FILE"
+    echo "✓ Environment file ownership set to: $CRON_USER"
+fi
+
+# Verify required scripts exist
+if [ ! -f "$SCRIPT_DIR/update-packages.sh" ]; then
+    echo "ERROR: Required script not found: $SCRIPT_DIR/update-packages.sh"
+    exit 1
+fi
+
+if [ ! -f "$SCRIPT_DIR/email-output.sh" ]; then
+    echo "ERROR: Required script not found: $SCRIPT_DIR/email-output.sh"
+    exit 1
 fi
 
 # Create the cron command
