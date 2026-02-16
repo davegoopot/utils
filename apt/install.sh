@@ -50,7 +50,7 @@ if [ -f "$ENV_FILE" ]; then
 fi
 
 if [ -z "$SKIP_ENV" ]; then
-    read -p "Enter recipient email address: " RECIPIENT_EMAIL
+    read -r -p "Enter recipient email address: " RECIPIENT_EMAIL
     
     if [ -z "$RECIPIENT_EMAIL" ]; then
         echo "ERROR: Email address cannot be empty"
@@ -71,7 +71,7 @@ fi
 echo ""
 echo "Setting up cron job..."
 CRON_SCHEDULE="0 8 * * *"  # Default: 8 AM daily
-read -p "Enter cron schedule (default: $CRON_SCHEDULE - 8 AM daily): " USER_SCHEDULE
+read -r -p "Enter cron schedule (default: $CRON_SCHEDULE - 8 AM daily): " USER_SCHEDULE
 
 if [ -n "$USER_SCHEDULE" ]; then
     CRON_SCHEDULE="$USER_SCHEDULE"
@@ -80,7 +80,7 @@ fi
 # Get the actual user who invoked sudo
 ACTUAL_USER="${SUDO_USER:-$USER}"
 if [ "$ACTUAL_USER" = "root" ]; then
-    read -p "Enter username for cron job (default: root): " CRON_USER
+    read -r -p "Enter username for cron job (default: root): " CRON_USER
     CRON_USER="${CRON_USER:-root}"
 else
     CRON_USER="$ACTUAL_USER"
