@@ -94,44 +94,45 @@ fi
 
 # Configure Gmail SMTP
 echo ""
-echo "Setting up Gmail SMTP configuration..."
-read -r -p "Do you want to configure Gmail SMTP for sending emails? (y/N): " -n 1 -r SETUP_GMAIL
+echo "Setting up Gmail/Google Workspace SMTP configuration..."
+read -r -p "Do you want to configure Gmail/Google Workspace SMTP for sending emails? (y/N): " -n 1 -r SETUP_GMAIL
 echo
 
 if [[ $SETUP_GMAIL =~ ^[Yy]$ ]]; then
     echo ""
-    echo "Gmail SMTP Setup:"
-    echo "=================="
-    echo "Note: You will need a Gmail App Password (not your regular password)"
+    echo "Gmail/Google Workspace SMTP Setup:"
+    echo "==================================="
+    echo "Note: You will need a Google App Password (not your regular password)"
+    echo "      This works for both Gmail (@gmail.com) and Google Workspace accounts"
     echo "To create an App Password:"
-    echo "  1. Enable 2-Step Verification on your Gmail account"
+    echo "  1. Enable 2-Step Verification on your Google account"
     echo "  2. Go to: https://myaccount.google.com/apppasswords"
     echo "  3. Generate an App Password for 'Mail'"
     echo ""
     
-    read -r -p "Enter your Gmail address: " GMAIL_ADDRESS
+    read -r -p "Enter your Gmail/Google Workspace email address: " GMAIL_ADDRESS
     
     if [ -z "$GMAIL_ADDRESS" ]; then
-        echo "ERROR: Gmail address cannot be empty"
+        echo "ERROR: Email address cannot be empty"
         exit 1
     fi
     
-    # Validate Gmail address format
-    if [[ ! "$GMAIL_ADDRESS" =~ ^[^@]+@gmail\.com$ ]]; then
-        echo "ERROR: Please enter a valid Gmail address (must end with @gmail.com)"
+    # Validate email address format (supports both @gmail.com and Google Workspace domains)
+    if [[ ! "$GMAIL_ADDRESS" =~ ^[^@]+@[^@]+\.[^@]+$ ]]; then
+        echo "ERROR: Please enter a valid email address"
         exit 1
     fi
     
-    read -r -s -p "Enter your Gmail App Password: " GMAIL_APP_PASSWORD
+    read -r -s -p "Enter your Google App Password: " GMAIL_APP_PASSWORD
     echo
     
     if [ -z "$GMAIL_APP_PASSWORD" ]; then
-        echo "ERROR: Gmail App Password cannot be empty"
+        echo "ERROR: Google App Password cannot be empty"
         exit 1
     fi
     
     # Configure Postfix for Gmail SMTP
-    echo "Configuring Postfix for Gmail SMTP..."
+    echo "Configuring Postfix for Gmail/Google Workspace SMTP..."
     
     # Backup existing main.cf
     if [ -f /etc/postfix/main.cf ]; then
@@ -142,7 +143,7 @@ if [[ $SETUP_GMAIL =~ ^[Yy]$ ]]; then
     # Update main.cf with Gmail SMTP settings
     cat >> /etc/postfix/main.cf << EOF
 
-# Gmail SMTP Configuration (added by apt installer)
+# Gmail/Google Workspace SMTP Configuration (added by apt installer)
 relayhost = [smtp.gmail.com]:587
 smtp_use_tls = yes
 smtp_sasl_auth_enable = yes
@@ -162,7 +163,7 @@ EOF
     # Restart Postfix
     systemctl restart postfix
     
-    echo "✓ Gmail SMTP configuration complete"
+    echo "✓ Gmail/Google Workspace SMTP configuration complete"
     
     # Test email
     echo ""
@@ -188,7 +189,7 @@ EOF
         fi
     fi
 else
-    echo "Skipping Gmail SMTP configuration"
+    echo "Skipping Gmail/Google Workspace SMTP configuration"
     echo "Note: You will need to configure your mail system manually for email delivery"
 fi
 

@@ -14,20 +14,24 @@ sudo ./install.sh
 The installer will:
 1. Install required packages (`mailutils`, `postfix`, `libsasl2-modules`, `ca-certificates`)
 2. Prompt for recipient email address
-3. Configure Gmail SMTP (optional but recommended)
+3. Configure Gmail/Google Workspace SMTP (optional but recommended)
 4. Create configuration file (`.env`)
 5. Set up a cron job to run package checks automatically
 
-### Gmail SMTP Setup
+### Gmail/Google Workspace SMTP Setup
 
-The installer can automatically configure Gmail SMTP for reliable email delivery. You will need:
+The installer can automatically configure Gmail or Google Workspace SMTP for reliable email delivery. This works for both:
+- **Gmail accounts** (@gmail.com)
+- **Google Workspace accounts** (custom domains like @yourbusiness.com)
 
-1. **A Gmail account with 2-Step Verification enabled**
-2. **A Gmail App Password** (not your regular Gmail password)
+You will need:
 
-#### Creating a Gmail App Password
+1. **A Google account with 2-Step Verification enabled**
+2. **A Google App Password** (not your regular account password)
 
-1. Enable 2-Step Verification on your Gmail account:
+#### Creating a Google App Password
+
+1. Enable 2-Step Verification on your Google account:
    - Go to [Google Account Security](https://myaccount.google.com/security)
    - Enable "2-Step Verification"
 
@@ -38,6 +42,8 @@ The installer can automatically configure Gmail SMTP for reliable email delivery
    - Copy the 16-character password (spaces don't matter)
 
 3. Use this App Password during the installer when prompted
+
+**Note:** Google Workspace accounts use the same SMTP server (smtp.gmail.com) as regular Gmail accounts, so the setup process is identical regardless of your domain.
 
 ## Manual Setup
 
@@ -52,7 +58,7 @@ sudo apt install mailutils postfix libsasl2-modules ca-certificates
 
 During Postfix installation, select "Internet Site" and enter your hostname.
 
-### 2. Configure Gmail SMTP (Recommended)
+### 2. Configure Gmail/Google Workspace SMTP (Recommended)
 
 Edit the Postfix configuration:
 
@@ -77,11 +83,13 @@ Create the password file:
 sudo nano /etc/postfix/sasl_passwd
 ```
 
-Add this line (replace with your Gmail address and App Password):
+Add this line (replace with your email address and App Password):
 
 ```
-[smtp.gmail.com]:587 your-email@gmail.com:your-app-password
+[smtp.gmail.com]:587 your-email@yourdomain.com:your-app-password
 ```
+
+**Note:** This works for both Gmail (@gmail.com) and Google Workspace (custom domain) accounts.
 
 Secure and hash the password file:
 
@@ -139,13 +147,14 @@ The `.env` file supports the following variables:
 2. Check Postfix logs: `sudo tail -f /var/log/mail.log`
 3. Test email manually: `echo "test" | mail -s "test" your-email@example.com`
 4. Check Postfix status: `sudo systemctl status postfix`
-5. For Gmail issues:
+5. For Gmail/Google Workspace issues:
    - Verify you're using an App Password, not your regular password
-   - Check that 2-Step Verification is enabled on your Gmail account
-   - Review Gmail's sending limits (500 emails/day)
-   - Check if Gmail blocked the login attempt (check your Gmail security alerts)
+   - Check that 2-Step Verification is enabled on your Google account
+   - Review Google's sending limits (500 emails/day for Gmail, may vary for Workspace)
+   - Check if Google blocked the login attempt (check your Google security alerts)
+   - For Google Workspace: Ensure SMTP relay is enabled in your admin console
 
-### Gmail SMTP Authentication Errors
+### Gmail/Google Workspace SMTP Authentication Errors
 
 If you see "authentication failed" errors:
 
@@ -154,9 +163,13 @@ If you see "authentication failed" errors:
    ```bash
    sudo cat /etc/postfix/sasl_passwd
    ```
+   Should show: `[smtp.gmail.com]:587 your-email@yourdomain.com:your-app-password`
 3. Ensure the file was hashed: `sudo postmap /etc/postfix/sasl_passwd`
 4. Check file permissions: `ls -l /etc/postfix/sasl_passwd*` (should be 600)
 5. Restart Postfix: `sudo systemctl restart postfix`
+6. For Google Workspace accounts:
+   - Verify your admin hasn't restricted SMTP access
+   - Check if less secure app access needs to be enabled (workspace admin setting)
 
 ### Cron job not running
 
