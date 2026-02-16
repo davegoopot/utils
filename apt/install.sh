@@ -116,6 +116,12 @@ if [[ $SETUP_GMAIL =~ ^[Yy]$ ]]; then
         exit 1
     fi
     
+    # Validate Gmail address format
+    if [[ ! "$GMAIL_ADDRESS" =~ ^[^@]+@gmail\.com$ ]]; then
+        echo "ERROR: Please enter a valid Gmail address (must end with @gmail.com)"
+        exit 1
+    fi
+    
     read -r -s -p "Enter your Gmail App Password: " GMAIL_APP_PASSWORD
     echo
     
@@ -150,6 +156,9 @@ EOF
     chmod 600 /etc/postfix/sasl_passwd
     postmap /etc/postfix/sasl_passwd
     
+    # Clear sensitive variables from memory
+    unset GMAIL_APP_PASSWORD
+    
     # Restart Postfix
     systemctl restart postfix
     
@@ -161,6 +170,13 @@ EOF
     echo
     
     if [[ $SEND_TEST =~ ^[Yy]$ ]]; then
+        # Load RECIPIENT from .env if not already set
+        if [ -z "$RECIPIENT_EMAIL" ] && [ -f "$ENV_FILE" ]; then
+            # shellcheck source=/dev/null
+            source "$ENV_FILE"
+            RECIPIENT_EMAIL="$RECIPIENT"
+        fi
+        
         TEST_RECIPIENT="${RECIPIENT_EMAIL:-$GMAIL_ADDRESS}"
         echo "Sending test email to $TEST_RECIPIENT..."
         if echo "This is a test email from the APT Package Update Email Notification System." | mail -s "Test Email - APT Notification System" "$TEST_RECIPIENT"; then
