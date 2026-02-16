@@ -45,6 +45,44 @@ You will need:
 
 **Note:** Google Workspace accounts use the same SMTP server (smtp.gmail.com) as regular Gmail accounts, so the setup process is identical regardless of your domain.
 
+## Checking for Gmail SMTP Errors
+
+If emails are not being sent, use the troubleshooting helper script:
+
+```bash
+cd apt
+sudo ./check-mail-errors.sh
+```
+
+This script will:
+- Check Postfix service status
+- Verify Gmail SMTP configuration
+- Display recent mail errors from logs
+- Show authentication issues
+- Provide debugging commands
+
+**Quick error checks:**
+
+```bash
+# View recent mail errors
+sudo tail -50 /var/log/mail.log | grep -i error
+
+# Watch mail log in real-time
+sudo tail -f /var/log/mail.log
+
+# Check mail queue
+mailq
+
+# Send test email
+echo "Test" | mail -s "Test" your-email@example.com
+```
+
+Common error codes:
+- **535** - Authentication failed (wrong password or not using App Password)
+- **534** - App Password required (using regular password instead)
+- **530** - Authentication required
+- **Connection refused** - Firewall or port 587 blocked
+
 ## Manual Setup
 
 If you prefer to set up manually:
@@ -131,6 +169,7 @@ Add to your crontab (e.g., `sudo crontab -e`):
 - **install.sh** - Interactive installer that sets up everything
 - **update-packages.sh** - Checks for available package updates
 - **email-output.sh** - Sends stdin content via email
+- **check-mail-errors.sh** - Troubleshooting helper for Gmail SMTP issues
 - **.env** - Configuration file (created by installer or manually)
 
 ## Configuration

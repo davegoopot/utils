@@ -180,13 +180,49 @@ EOF
         
         TEST_RECIPIENT="${RECIPIENT_EMAIL:-$GMAIL_ADDRESS}"
         echo "Sending test email to $TEST_RECIPIENT..."
-        if echo "This is a test email from the APT Package Update Email Notification System." | mail -s "Test Email - APT Notification System" "$TEST_RECIPIENT"; then
-            echo "✓ Test email sent successfully"
+        echo "This is a test email from the APT Package Update Email Notification System." | mail -s "Test Email - APT Notification System" "$TEST_RECIPIENT"
+        
+        # Wait a moment for the mail to be processed
+        sleep 2
+        
+        # Check mail queue and logs for errors
+        QUEUE_COUNT=$(mailq | grep -c "Mail queue is empty" 2>/dev/null || echo "0")
+        
+        if [ "$QUEUE_COUNT" -gt 0 ] || ! mailq | grep -q "^[A-F0-9]"; then
+            echo "✓ Test email queued successfully"
             echo "  Please check your inbox (and spam folder) for the test email"
+            echo ""
+            echo "  Note: Email delivery may take a few moments."
         else
-            echo "✗ Failed to send test email"
-            echo "  Check /var/log/mail.log for details"
+            echo "⚠ Test email is in queue (not sent yet)"
+            echo ""
+            echo "  Current mail queue:"
+            mailq | head -10
         fi
+        
+        # Check for recent errors in mail log
+        if [ -f /var/log/mail.log ]; then
+            RECENT_ERRORS=$(tail -20 /var/log/mail.log | grep -i -E "(error|warn|fatal|authentication failed|535|530)" | tail -5)
+            if [ -n "$RECENT_ERRORS" ]; then
+                echo ""
+                echo "⚠ Recent errors found in mail log:"
+                echo "  ----------------------------------------"
+                # Use a while loop instead of sed for shellcheck compliance
+                while IFS= read -r line; do
+                    echo "  $line"
+                done <<< "$RECENT_ERRORS"
+                echo "  ----------------------------------------"
+                echo ""
+                echo "  For detailed diagnostics, run:"
+                echo "  sudo $SCRIPT_DIR/check-mail-errors.sh"
+            fi
+        fi
+        
+        echo ""
+        echo "  To check for errors, run:"
+        echo "  sudo tail -f /var/log/mail.log"
+        echo "  or use the troubleshooting helper:"
+        echo "  sudo $SCRIPT_DIR/check-mail-errors.sh"
     fi
 else
     echo "Skipping Gmail/Google Workspace SMTP configuration"
