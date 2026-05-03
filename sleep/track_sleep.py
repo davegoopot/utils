@@ -35,14 +35,22 @@ def get_user_input():
 def append_sleep_data(date, taped, score):
     """Append a new row to the sleep CSV file."""
     file_exists = False
+    needs_newline = False
     try:
         with open(CSV_FILE, 'r', newline='') as f:
             file_exists = True
+            content = f.read()
+            # Check if file doesn't end with a newline
+            if content and not content.endswith('\n'):
+                needs_newline = True
     except FileNotFoundError:
         pass
     
     # Open in append mode with newline='' to let csv writer handle line endings
     with open(CSV_FILE, 'a', newline='') as f:
+        # Add missing newline before appending if needed
+        if needs_newline:
+            f.write('\n')
         writer = csv.writer(f)
         # Write header if file didn't exist
         if not file_exists:
