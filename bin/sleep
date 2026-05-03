@@ -1,0 +1,8 @@
+#!/bin/bash
+# Bash script to run sleep tracking
+# Temporarily changes to ~/plan, runs track_sleep.py with uv, then returns
+
+ORIGINAL_DIR=$(pwd)
+cd ~/plan || exit 1
+uv run ~/utils/sleep/track_sleep.py
+cd "$ORIGINAL_DIR" || exit 1
